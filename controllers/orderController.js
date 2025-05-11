@@ -427,32 +427,25 @@ exports.webhookPaymentVerification = async (req, res) => {
   try {
     const secret = process.env.RAZORPAY_WEBHOOK_SECRET;
     const razorpaySignature = req.headers['x-razorpay-signature'];
-
-    // 🛠️ Use raw body for HMAC verification
-    const rawBody = req.body.toString('utf8'); // <-- Convert to string
-
-    console.log('Crypto module:', crypto);
-    console.log('Crypto HMAC:', crypto.createHmac);
+    const rawBody = JSON.stringify(req.body); // Convert to string
     
-
-    // ✅ Generate HMAC signature using Razorpay Webhook Secret
+    // ✅ Generate HMAC signature
     const hmac = crypto.createHmac('sha256', secret);
-    hmac.update(rawBody);
+    hmac.update(rawBody, 'utf-8');
     const generatedSignature = hmac.digest('hex');
 
-    // 🔥 Verify the signature
+    console.log("🔄 Generated Signature:", generatedSignature);
+    console.log("📝 Received Signature:", razorpaySignature);
+
     if (generatedSignature !== razorpaySignature) {
       console.log("❌ Signature mismatch.");
       return res.status(400).json({ message: "Signature mismatch" });
     }
 
-    // 🔍 Extract information from the webhook event
-    const payload = JSON.parse(rawBody);
-    const razorpayOrderId = payload.payload.payment.entity.order_id;
-
+    // ✅ Extract information
+    const razorpayOrderId = req.body.payload.payment.entity.order_id;
     console.log("✅ Webhook received for Order ID:", razorpayOrderId);
 
-    // 🔄 Find the order in your database
     const order = await Order.findOne({ razorpayOrderId });
 
     if (!order) {
@@ -482,7 +475,6 @@ exports.webhookPaymentVerification = async (req, res) => {
     );
     console.log("✅ Cart cleared after payment");
 
-    // ✅ Respond back to Razorpay
     res.status(200).json({ message: "Payment verified and order updated." });
 
   } catch (err) {
@@ -490,7 +482,6 @@ exports.webhookPaymentVerification = async (req, res) => {
     res.status(500).json({ message: "Payment verification failed" });
   }
 };
-
 
 
 
