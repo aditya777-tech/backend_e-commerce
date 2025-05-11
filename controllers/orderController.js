@@ -8,6 +8,8 @@ const dotenv = require("dotenv");
 // const Order = require('../models/Order');
 // const Cart = require('../models/Cart');
 dotenv.config();  // Load environment variables
+const crypto = require('crypto');
+
 
 // Initialize Razorpay instance
 const razorpayInstance = new Razorpay({
@@ -428,6 +430,10 @@ exports.webhookPaymentVerification = async (req, res) => {
 
     // 🛠️ Use raw body for HMAC verification
     const rawBody = req.body.toString('utf8'); // <-- Convert to string
+
+    console.log('Crypto module:', crypto);
+    console.log('Crypto HMAC:', crypto.createHmac);
+    
 
     // ✅ Generate HMAC signature using Razorpay Webhook Secret
     const hmac = crypto.createHmac('sha256', secret);
