@@ -25,7 +25,7 @@ dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
 
 app.use(cors({
-    origin: process.env.CLIENT_URL || 'http://localhost:5173',
+    origin: process.env.CLIENT_URL || 'https://statuesque-vacherin-b43544.netlify.app/',
     credentials: true
   }));
   
