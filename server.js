@@ -25,9 +25,9 @@ dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
 
 app.use(cors({
-    origin: process.env.CLIENT_URL || 'https://statuesque-vacherin-b43544.netlify.app/',
-    credentials: true
-  }));
+  origin: 'https://statuesque-vacherin-b43544.netlify.app', // ✅ NO trailing slash!
+  credentials: true,
+}));
   
 app.get('/',(req,res)=>{
     res.send('<center><h1>.......</h1></center>');
