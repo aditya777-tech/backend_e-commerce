@@ -423,28 +423,98 @@ exports.createOrder = async (req, res) => {
 
 
 
+// exports.webhookPaymentVerification = async (req, res) => {
+//   try {
+//     const secret = process.env.RAZORPAY_WEBHOOK_SECRET;
+//     const razorpaySignature = req.headers['x-razorpay-signature'];
+//     const rawBody = JSON.stringify(req.body); // Convert to string
+    
+//     // ✅ Generate HMAC signature
+//     const hmac = crypto.createHmac('sha256', secret);
+//     hmac.update(rawBody, 'utf-8');
+//     const generatedSignature = hmac.digest('hex');
+
+//     console.log("🔄 Generated Signature:", generatedSignature);
+//     console.log("📝 Received Signature:", razorpaySignature);
+
+//     if (generatedSignature !== razorpaySignature) {
+//       console.log("❌ Signature mismatch.");
+//       return res.status(400).json({ message: "Signature mismatch" });
+//     }
+
+//     // ✅ Extract information
+//     const razorpayOrderId = req.body.payload.payment.entity.order_id;
+//     console.log("✅ Webhook received for Order ID:", razorpayOrderId);
+
+//     const order = await Order.findOne({ razorpayOrderId });
+
+//     if (!order) {
+//       return res.status(404).json({ message: `Order with ID ${razorpayOrderId} not found.` });
+//     }
+
+//     // ✅ Update order status to "Paid"
+//     order.paymentStatus = "Paid";
+//     await order.save();
+//     console.log("✅ Order updated to Paid:", order);
+
+//     // ✅ Modify stock for each item in the order
+//     for (const item of order.items) {
+//       const product = await Product.findById(item.product);
+
+//       if (product) {
+//         product.countInStock -= item.quantity;
+//         await product.save();
+//         console.log(`✅ Product stock updated for ${product.title}: ${product.countInStock}`);
+//       }
+//     }
+
+//     // ✅ Clear cart if the order is placed from the cart
+//     await Cart.findOneAndUpdate(
+//       { user: order.user },
+//       { $set: { items: [] } }
+//     );
+//     console.log("✅ Cart cleared after payment");
+
+//     res.status(200).json({ message: "Payment verified and order updated." });
+
+//   } catch (err) {
+//     console.error("❌ Error verifying payment:", err.message);
+//     res.status(500).json({ message: "Payment verification failed" });
+//   }
+// };
+
+
+
+// new one with event check :
+
+
 exports.webhookPaymentVerification = async (req, res) => {
   try {
     const secret = process.env.RAZORPAY_WEBHOOK_SECRET;
     const razorpaySignature = req.headers['x-razorpay-signature'];
     const rawBody = JSON.stringify(req.body); // Convert to string
-    
+
     // ✅ Generate HMAC signature
     const hmac = crypto.createHmac('sha256', secret);
     hmac.update(rawBody, 'utf-8');
     const generatedSignature = hmac.digest('hex');
-
-    console.log("🔄 Generated Signature:", generatedSignature);
-    console.log("📝 Received Signature:", razorpaySignature);
 
     if (generatedSignature !== razorpaySignature) {
       console.log("❌ Signature mismatch.");
       return res.status(400).json({ message: "Signature mismatch" });
     }
 
-    // ✅ Extract information
+    const event = req.body.event;
+    console.log("📢 Webhook Event:", event);
+
+    // 🚫 Ignore other events except 'payment.captured'
+    if (event !== 'payment.captured') {
+      console.log(`ℹ️ Ignoring event: ${event}`);
+      return res.status(200).json({ message: `Ignored event: ${event}` });
+    }
+
     const razorpayOrderId = req.body.payload.payment.entity.order_id;
-    console.log("✅ Webhook received for Order ID:", razorpayOrderId);
+    console.log("✅ Webhook received for Razorpay Order ID:", razorpayOrderId);
 
     const order = await Order.findOne({ razorpayOrderId });
 
@@ -452,34 +522,30 @@ exports.webhookPaymentVerification = async (req, res) => {
       return res.status(404).json({ message: `Order with ID ${razorpayOrderId} not found.` });
     }
 
-    // ✅ Update order status to "Paid"
+    // ✅ Only now — mark as paid
     order.paymentStatus = "Paid";
     await order.save();
     console.log("✅ Order updated to Paid:", order);
 
-    // ✅ Modify stock for each item in the order
+    // ✅ Update stock
     for (const item of order.items) {
       const product = await Product.findById(item.product);
-
       if (product) {
         product.countInStock -= item.quantity;
         await product.save();
-        console.log(`✅ Product stock updated for ${product.title}: ${product.countInStock}`);
+        console.log(`✅ Stock updated: ${product.title} - New stock: ${product.countInStock}`);
       }
     }
 
-    // ✅ Clear cart if the order is placed from the cart
-    await Cart.findOneAndUpdate(
-      { user: order.user },
-      { $set: { items: [] } }
-    );
-    console.log("✅ Cart cleared after payment");
+    // ✅ Clear user's cart
+    await Cart.findOneAndUpdate({ user: order.user }, { $set: { items: [] } });
+    console.log("✅ Cart cleared");
 
-    res.status(200).json({ message: "Payment verified and order updated." });
+    res.status(200).json({ message: "Payment captured and order processed." });
 
   } catch (err) {
-    console.error("❌ Error verifying payment:", err.message);
-    res.status(500).json({ message: "Payment verification failed" });
+    console.error("❌ Webhook processing failed:", err.message);
+    res.status(500).json({ message: "Webhook error" });
   }
 };
 
