@@ -514,7 +514,7 @@ exports.webhookPaymentVerification = async (req, res) => {
     // }
 
 
-        if (event !== 'payment.captured') {
+     if (event !== 'payment.captured') {
        const razorpayOrderId = req.body.payload.payment.entity.order_id;
   console.log(`⚠️ Non-capture event (${event}) received for Razorpay Order ID: ${razorpayOrderId}`);
 
@@ -525,6 +525,9 @@ exports.webhookPaymentVerification = async (req, res) => {
     await order.save();
     console.log("❌ Order marked as Failed:", order);
   }
+
+  return res.status(200).json({ message: `Non-capture event handled: ${event}` });
+    }
 
     const razorpayOrderId = req.body.payload.payment.entity.order_id;
     console.log("✅ Webhook received for Razorpay Order ID:", razorpayOrderId);
