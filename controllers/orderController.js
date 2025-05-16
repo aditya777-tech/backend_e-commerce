@@ -508,10 +508,23 @@ exports.webhookPaymentVerification = async (req, res) => {
     console.log("📢 Webhook Event:", event);
 
     // 🚫 Ignore other events except 'payment.captured'
-    if (event !== 'payment.captured') {
-      console.log(`ℹ️ Ignoring event: ${event}`);
-      return res.status(200).json({ message: `Ignored event: ${event}` });
-    }
+    // if (event !== 'payment.captured') {
+    //   console.log(`ℹ️ Ignoring event: ${event}`);
+    //   return res.status(200).json({ message: `Ignored event: ${event}` });
+    // }
+
+
+        if (event !== 'payment.captured') {
+       const razorpayOrderId = req.body.payload.payment.entity.order_id;
+  console.log(`⚠️ Non-capture event (${event}) received for Razorpay Order ID: ${razorpayOrderId}`);
+
+  const order = await Order.findOne({ razorpayOrderId });
+
+  if (order) {
+    order.paymentStatus = "Failed";
+    await order.save();
+    console.log("❌ Order marked as Failed:", order);
+  }
 
     const razorpayOrderId = req.body.payload.payment.entity.order_id;
     console.log("✅ Webhook received for Razorpay Order ID:", razorpayOrderId);
